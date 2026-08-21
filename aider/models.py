@@ -983,6 +983,20 @@ class Model(ModelSettings):
             os.environ[openai_api_key] = token
 
     def send_completion(self, messages, functions, stream, temperature=None):
+        import logging
+        
+        # 配置日志记录器
+        logger = logging.getLogger("aider_llm")
+        logger.setLevel(logging.INFO)
+        
+        # 如果还没有处理器，添加文件处理器
+        if not logger.handlers:
+            log_file = "aider_llm.log"
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+        
         if os.environ.get("AIDER_SANITY_CHECK_TURNS"):
             sanity_check_messages(messages)
 
@@ -1033,7 +1047,19 @@ class Model(ModelSettings):
 
             self.github_copilot_token_to_open_ai_key(kwargs["extra_headers"])
 
+        # 记录 LLM 请求日志
+        logger.info(f"LLM 名称：{self.name}")
+        logger.info(f"请求参数：{json.dumps({k: v for k, v in kwargs.items() if k != 'messages'}, indent=2, ensure_ascii=False)}")
+        logger.info(f"消息内容：{json.dumps(messages, indent=2, ensure_ascii=False)}")
+        
         res = litellm.completion(**kwargs)
+        
+        # 记录 LLM 响应日志
+        if stream:
+            logger.info(f"响应类型：流式响应")
+        else:
+            logger.info(f"响应内容：{json.dumps(str(res), indent=2, ensure_ascii=False)}")
+        
         return hash_object, res
 
     def simple_send_with_retries(self, messages):

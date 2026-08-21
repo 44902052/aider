@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""
+Aider 核心编码器模块 - base_coder.py
+
+本模块定义了 Aider 的核心 Coder 类，负责管理 AI 辅助编程的主要逻辑。
+Coder 类处理与 LLM 的交互、文件编辑、Git 集成、代码检查等功能。
+"""
 
 import base64
 import hashlib
@@ -54,6 +60,8 @@ from .chat_chunks import ChatChunks
 
 
 class UnknownEditFormat(ValueError):
+    """未知编辑格式异常类"""
+    
     def __init__(self, edit_format, valid_formats):
         self.edit_format = edit_format
         self.valid_formats = valid_formats
@@ -63,17 +71,21 @@ class UnknownEditFormat(ValueError):
 
 
 class MissingAPIKeyError(ValueError):
+    """缺少 API 密钥异常类"""
     pass
 
 
 class FinishReasonLength(Exception):
+    """完成原因长度异常类（用于处理上下文窗口超出）"""
     pass
 
 
 def wrap_fence(name):
+    """为代码围栏生成开始和结束标签"""
     return f"<{name}>", f"</{name}>"
 
 
+# 所有支持的代码围栏格式列表
 all_fences = [
     ("`" * 3, "`" * 3),
     ("`" * 4, "`" * 4),  # LLMs ignore and revert to triple-backtick, causing #2879
@@ -86,40 +98,52 @@ all_fences = [
 
 
 class Coder:
-    abs_fnames = None
-    abs_read_only_fnames = None
-    repo = None
-    last_aider_commit_hash = None
-    aider_edited_files = None
-    last_asked_for_commit_time = 0
-    repo_map = None
-    functions = None
-    num_exhausted_context_windows = 0
-    num_malformed_responses = 0
-    last_keyboard_interrupt = None
-    num_reflections = 0
-    max_reflections = 3
-    edit_format = None
-    yield_stream = False
-    temperature = None
-    auto_lint = True
-    auto_test = False
-    test_cmd = None
-    lint_outcome = None
-    test_outcome = None
-    multi_response_content = ""
-    partial_response_content = ""
-    commit_before_message = []
-    message_cost = 0.0
-    add_cache_headers = False
-    cache_warming_thread = None
-    num_cache_warming_pings = 0
-    suggest_shell_commands = True
-    detect_urls = True
-    ignore_mentions = None
-    chat_language = None
-    commit_language = None
-    file_watcher = None
+    """
+    Aider 核心编码器类
+    
+    负责管理 AI 辅助编程的主要逻辑，包括：
+    - 与 LLM 的交互和消息处理
+    - 文件管理和编辑
+    - Git 仓库集成
+    - 代码检查和测试
+    - 聊天历史记录管理
+    """
+    
+    # 类属性定义
+    abs_fnames = None  # 绝对路径的文件名集合
+    abs_read_only_fnames = None  # 只读文件的绝对路径集合
+    repo = None  # Git 仓库对象
+    last_aider_commit_hash = None  # 最后一次 aider 提交的哈希值
+    aider_edited_files = None  # aider 编辑过的文件集合
+    last_asked_for_commit_time = 0  # 上次请求提交的时间戳
+    repo_map = None  # 仓库地图对象
+    functions = None  # 函数定义列表
+    num_exhausted_context_windows = 0  # 上下文窗口耗尽次数
+    num_malformed_responses = 0  # 格式错误响应次数
+    last_keyboard_interrupt = None  # 上次键盘中断时间
+    num_reflections = 0  # 反射次数
+    max_reflections = 3  # 最大反射次数
+    edit_format = None  # 编辑格式
+    yield_stream = False  # 是否流式输出
+    temperature = None  # 温度参数
+    auto_lint = True  # 是否自动 lint
+    auto_test = False  # 是否自动测试
+    test_cmd = None  # 测试命令
+    lint_outcome = None  # lint 结果
+    test_outcome = None  # 测试结果
+    multi_response_content = ""  # 多部分响应内容
+    partial_response_content = ""  # 部分响应内容
+    commit_before_message = []  # 消息前的提交列表
+    message_cost = 0.0  # 消息成本
+    add_cache_headers = False  # 是否添加缓存头
+    cache_warming_thread = None  # 缓存预热线程
+    num_cache_warming_pings = 0  # 缓存预热 ping 次数
+    suggest_shell_commands = True  # 是否建议 shell 命令
+    detect_urls = True  # 是否检测 URL
+    ignore_mentions = None  # 忽略的提及列表
+    chat_language = None  # 聊天语言
+    commit_language = None  # 提交语言
+    file_watcher = None  # 文件监视器
 
     @classmethod
     def create(
@@ -131,6 +155,20 @@ class Coder:
         summarize_from_coder=True,
         **kwargs,
     ):
+        """
+        创建 Coder 实例的工厂方法
+        
+        参数:
+            main_model: 主模型对象
+            edit_format: 编辑格式
+            io: 输入输出对象
+            from_coder: 从中复制的 Coder 实例
+            summarize_from_coder: 是否总结来自原 Coder 的消息
+            **kwargs: 其他关键字参数
+            
+        返回:
+            Coder 实例
+        """
         import aider.coders as coders
 
         if not main_model:
@@ -201,10 +239,27 @@ class Coder:
         raise UnknownEditFormat(edit_format, valid_formats)
 
     def clone(self, **kwargs):
+        """
+        克隆当前 Coder 实例
+        
+        参数:
+            **kwargs: 覆盖原实例配置的关键字参数
+            
+        返回:
+            新的 Coder 实例
+        """
         new_coder = Coder.create(from_coder=self, **kwargs)
         return new_coder
 
     def get_announcements(self):
+        """
+        获取系统公告信息
+        
+        返回模型、仓库、文件等配置信息的列表
+        
+        返回:
+            包含公告信息的字符串列表
+        """
         lines = []
         lines.append(f"Aider v{__version__}")
 
@@ -294,7 +349,7 @@ class Coder:
 
         return lines
 
-    ok_to_warm_cache = False
+    ok_to_warm_cache = False  # 是否允许预热缓存
 
     def __init__(
         self,
@@ -339,6 +394,51 @@ class Coder:
         auto_copy_context=False,
         auto_accept_architect=True,
     ):
+        """
+        初始化 Coder 实例
+        
+        参数:
+            main_model: 主模型对象
+            io: 输入输出对象
+            repo: Git 仓库对象，默认为 None
+            fnames: 要添加的文件名列表
+            add_gitignore_files: 是否添加被 gitignore 忽略的文件
+            read_only_fnames: 只读文件名列表
+            show_diffs: 是否显示差异
+            auto_commits: 是否自动提交
+            dirty_commits: 是否提交脏数据
+            dry_run: 是否为试运行模式
+            map_tokens: 仓库地图使用的 token 数量
+            verbose: 是否详细输出
+            stream: 是否流式输出
+            use_git: 是否使用 Git
+            cur_messages: 当前消息列表
+            done_messages: 已完成的消息列表
+            restore_chat_history: 是否恢复聊天历史
+            auto_lint: 是否自动 lint
+            auto_test: 是否自动测试
+            lint_cmds: lint 命令字典
+            test_cmd: 测试命令
+            aider_commit_hashes: aider 提交哈希集合
+            map_mul_no_files: 地图乘数（无文件时）
+            commands: Commands 对象
+            summarizer: ChatSummary 对象
+            total_cost: 总成本
+            analytics: Analytics 对象
+            map_refresh: 地图刷新策略
+            cache_prompts: 是否缓存提示词
+            num_cache_warming_pings: 缓存预热 ping 次数
+            suggest_shell_commands: 是否建议 shell 命令
+            chat_language: 聊天语言
+            commit_language: 提交语言
+            detect_urls: 是否检测 URL
+            ignore_mentions: 忽略的提及集合
+            total_tokens_sent: 发送的总 token 数
+            total_tokens_received: 接收的总 token 数
+            file_watcher: 文件监视器
+            auto_copy_context: 是否自动复制上下文
+            auto_accept_architect: 是否自动接受架构师模式
+        """
         # Fill in a dummy Analytics if needed, but it is never .enable()'d
         self.analytics = analytics if analytics is not None else Analytics()
 
