@@ -1,3 +1,11 @@
+"""
+Aider - AI Pair Programming in Terminal
+
+This is the main entry point module for the aider application.
+It handles command-line argument parsing, initialization, and coordination
+of all major components including Git integration, model selection, and coder setup.
+"""
+
 import json
 import os
 import re
@@ -41,6 +49,18 @@ from .dump import dump  # noqa: F401
 
 
 def check_config_files_for_yes(config_files):
+    """
+    Check configuration files for deprecated 'yes:' syntax.
+    
+    Scans through provided config files to detect if any contain
+    the deprecated 'yes:' syntax that should be replaced with 'yes-always:'.
+    
+    Args:
+        config_files: List of paths to configuration files to check
+        
+    Returns:
+        bool: True if deprecated syntax was found, False otherwise
+    """
     found = False
     for config_file in config_files:
         if Path(config_file).exists():
@@ -58,7 +78,15 @@ def check_config_files_for_yes(config_files):
 
 
 def get_git_root():
-    """Try and guess the git repo, since the conf.yml can be at the repo root"""
+    """
+    Attempt to locate the root directory of a git repository.
+    
+    Searches upward from the current directory to find a git repository.
+    Used to determine where configuration files should be stored.
+    
+    Returns:
+        str or None: Path to git repository root if found, None otherwise
+    """
     try:
         repo = git.Repo(search_parent_directories=True)
         return repo.working_tree_dir
@@ -67,8 +95,21 @@ def get_git_root():
 
 
 def guessed_wrong_repo(io, git_root, fnames, git_dname):
-    """After we parse the args, we can determine the real repo. Did we guess wrong?"""
-
+    """
+    Verify if the initially guessed git repository was correct.
+    
+    After parsing arguments, we can determine the actual repository.
+    This function checks if our initial guess matches the real repository.
+    
+    Args:
+        io: InputOutput instance for user communication
+        git_root: Initially guessed git root directory
+        fnames: List of file names provided
+        git_dname: Git directory name if specified
+        
+    Returns:
+        str or None: Actual repository path if different from guess, None if correct
+    """
     try:
         check_repo = Path(GitRepo(io, fnames, git_dname).root).resolve()
     except (OSError,) + ANY_GIT_ERROR:
@@ -86,6 +127,18 @@ def guessed_wrong_repo(io, git_root, fnames, git_dname):
 
 
 def make_new_repo(git_root, io):
+    """
+    Create a new git repository at the specified location.
+    
+    Initializes a git repository and sets up appropriate .gitignore entries.
+    
+    Args:
+        git_root: Directory path where the repository should be created
+        io: InputOutput instance for user communication
+        
+    Returns:
+        git.Repo or None: Created repository object, or None if creation failed
+    """
     try:
         repo = git.Repo.init(git_root)
         check_gitignore(git_root, io, False)
@@ -99,6 +152,20 @@ def make_new_repo(git_root, io):
 
 
 def setup_git(git_root, io):
+    """
+    Set up git repository configuration for aider.
+    
+    Checks for existing git repository, creates one if needed, and ensures
+    user name and email are configured. Prompts user for confirmation before
+    creating a new repository.
+    
+    Args:
+        git_root: Initially guessed git root directory or None
+        io: InputOutput instance for user communication
+        
+    Returns:
+        str or None: Path to git repository working tree directory, or None if not set up
+    """
     if git is None:
         return
 
@@ -153,6 +220,17 @@ def setup_git(git_root, io):
 
 
 def check_gitignore(git_root, io, ask=True):
+    """
+    Ensure aider-related files are added to .gitignore.
+    
+    Checks if .aider and .env files should be ignored by git and adds them
+    to .gitignore if necessary. Can prompt user for confirmation.
+    
+    Args:
+        git_root: Root directory of the git repository
+        io: InputOutput instance for user communication
+        ask: Whether to prompt user for confirmation before making changes
+    """
     if not git_root:
         return
 
@@ -206,6 +284,18 @@ def check_gitignore(git_root, io, ask=True):
 
 
 def check_streamlit_install(io):
+    """
+    Check if Streamlit is installed and prompt to install if needed.
+    
+    Verifies that the streamlit package is available for the browser feature.
+    If not installed, prompts the user to install it.
+    
+    Args:
+        io: InputOutput instance for user communication
+        
+    Returns:
+        bool: True if streamlit is installed or was successfully installed, False otherwise
+    """
     return utils.check_pip_install_extra(
         io,
         "streamlit",
@@ -215,6 +305,14 @@ def check_streamlit_install(io):
 
 
 def write_streamlit_credentials():
+    """
+    Write default Streamlit credentials file.
+    
+    Creates an empty credentials.toml file for Streamlit to prevent
+    it from prompting the user for an email address.
+    
+    See https://github.com/Aider-AI/aider/issues/772
+    """
     from streamlit.file_util import get_streamlit_file_path
 
     # See https://github.com/Aider-AI/aider/issues/772
@@ -231,6 +329,15 @@ def write_streamlit_credentials():
 
 
 def launch_gui(args):
+    """
+    Launch the Aider graphical user interface using Streamlit.
+    
+    Initializes and runs the Streamlit-based GUI for aider with appropriate
+    configuration settings based on whether it's a development or production version.
+    
+    Args:
+        args: List of command-line arguments to pass to the GUI
+    """
     from streamlit.web import cli
 
     from aider import gui
@@ -276,6 +383,19 @@ def launch_gui(args):
 
 
 def parse_lint_cmds(lint_cmds, io):
+    """
+    Parse lint command strings into a dictionary mapping languages to commands.
+    
+    Processes --lint-cmd arguments in the format "language: cmd --args" or just "cmd".
+    
+    Args:
+        lint_cmds: List of lint command strings to parse
+        io: InputOutput instance for error reporting
+        
+    Returns:
+        dict or None: Dictionary mapping language names to lint commands,
+                     or None if parsing errors occurred
+    """
     err = False
     res = dict()
     for lint_cmd in lint_cmds:
@@ -303,6 +423,20 @@ def parse_lint_cmds(lint_cmds, io):
 
 
 def generate_search_path_list(default_file, git_root, command_line_file):
+    """
+    Generate a list of file paths to search for configuration files.
+    
+    Creates a prioritized search path including home directory, git root,
+    and command-line specified locations. Removes duplicates while preserving order.
+    
+    Args:
+        default_file: Default filename to search for (e.g., ".aider.conf.yml")
+        git_root: Root directory of git repository or None
+        command_line_file: File path specified via command line or None
+        
+    Returns:
+        list: List of file paths as strings, ordered from lowest to highest priority
+    """
     files = []
     files.append(Path.home() / default_file)  # homedir
     if git_root:
@@ -333,6 +467,21 @@ def generate_search_path_list(default_file, git_root, command_line_file):
 
 
 def register_models(git_root, model_settings_fname, io, verbose=False):
+    """
+    Register custom model settings from configuration files.
+    
+    Loads model settings from search paths and registers them with the models module.
+    Reports loaded files and search paths when verbose mode is enabled.
+    
+    Args:
+        git_root: Root directory of git repository or None
+        model_settings_fname: Command-line specified model settings filename
+        io: InputOutput instance for output and error reporting
+        verbose: Whether to print detailed loading information
+        
+    Returns:
+        int or None: Error code 1 if loading failed, None on success
+    """
     model_settings_files = generate_search_path_list(
         ".aider.model.settings.yml", git_root, model_settings_fname
     )
@@ -359,6 +508,20 @@ def register_models(git_root, model_settings_fname, io, verbose=False):
 
 
 def load_dotenv_files(git_root, dotenv_fname, encoding="utf-8"):
+    """
+    Load environment variables from .env files at various locations.
+    
+    Searches for .env files in standard locations and loads them in order.
+    Also includes OAuth keys file if it exists.
+    
+    Args:
+        git_root: Root directory of git repository or None
+        dotenv_fname: Command-line specified .env filename
+        encoding: Text encoding to use when reading files (default: "utf-8")
+        
+    Returns:
+        list: List of successfully loaded .env file paths
+    """
     # Standard .env file search path
     dotenv_files = generate_search_path_list(
         ".env",
@@ -388,6 +551,18 @@ def load_dotenv_files(git_root, dotenv_fname, encoding="utf-8"):
 
 
 def register_litellm_models(git_root, model_metadata_fname, io, verbose=False):
+    """
+    Register LiteLLM model metadata from configuration files.
+    
+    Loads model metadata definitions and registers them with LiteLLM.
+    Searches multiple locations for metadata files.
+    
+    Args:
+        git_root: Root directory of git repository or None
+        model_metadata_fname: Command-line specified model metadata filename
+        io: InputOutput instance for output and error reporting
+        verbose: Whether to print detailed loading information
+    """
     model_metadata_files = []
 
     # Add the resource file path
