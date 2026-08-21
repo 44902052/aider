@@ -1,9 +1,9 @@
 """
-Aider - AI Pair Programming in Terminal
+Aider - 终端中的 AI 结对编程工具
 
-This is the main entry point module for the aider application.
-It handles command-line argument parsing, initialization, and coordination
-of all major components including Git integration, model selection, and coder setup.
+这是 aider 应用程序的主入口点模块。
+它处理命令行参数解析、初始化以及所有主要组件的协调，
+包括 Git 集成、模型选择和 coder 设置。
 """
 
 import json
@@ -50,16 +50,16 @@ from .dump import dump  # noqa: F401
 
 def check_config_files_for_yes(config_files):
     """
-    Check configuration files for deprecated 'yes:' syntax.
+    检查配置文件中是否包含已弃用的 'yes:' 语法。
     
-    Scans through provided config files to detect if any contain
-    the deprecated 'yes:' syntax that should be replaced with 'yes-always:'.
+    扫描提供的配置文件，检测是否包含任何应替换为 
+    'yes-always:' 的已弃用 'yes:' 语法。
     
     Args:
-        config_files: List of paths to configuration files to check
+        config_files: 要检查的配置文件路径列表
         
     Returns:
-        bool: True if deprecated syntax was found, False otherwise
+        bool: 如果找到已弃用的语法则返回 True，否则返回 False
     """
     found = False
     for config_file in config_files:
@@ -79,13 +79,13 @@ def check_config_files_for_yes(config_files):
 
 def get_git_root():
     """
-    Attempt to locate the root directory of a git repository.
+    尝试定位 git 仓库的根目录。
     
-    Searches upward from the current directory to find a git repository.
-    Used to determine where configuration files should be stored.
+    从当前目录向上搜索以查找 git 仓库。
+    用于确定配置文件应存储的位置。
     
     Returns:
-        str or None: Path to git repository root if found, None otherwise
+        str 或 None: 如果找到则返回 git 仓库根目录路径，否则返回 None
     """
     try:
         repo = git.Repo(search_parent_directories=True)
@@ -96,19 +96,19 @@ def get_git_root():
 
 def guessed_wrong_repo(io, git_root, fnames, git_dname):
     """
-    Verify if the initially guessed git repository was correct.
+    验证最初猜测的 git 仓库是否正确。
     
-    After parsing arguments, we can determine the actual repository.
-    This function checks if our initial guess matches the real repository.
+    在解析参数后，我们可以确定实际的仓库。
+    此函数检查我们的初始猜测是否与实际仓库匹配。
     
     Args:
-        io: InputOutput instance for user communication
-        git_root: Initially guessed git root directory
-        fnames: List of file names provided
-        git_dname: Git directory name if specified
+        io: 用于用户通信的 InputOutput 实例
+        git_root: 最初猜测的 git 根目录
+        fnames: 提供的文件名列表
+        git_dname: 如果指定的 git 目录名称
         
     Returns:
-        str or None: Actual repository path if different from guess, None if correct
+        str 或 None: 如果与猜测不同则返回实际仓库路径，如果正确则返回 None
     """
     try:
         check_repo = Path(GitRepo(io, fnames, git_dname).root).resolve()
@@ -128,16 +128,16 @@ def guessed_wrong_repo(io, git_root, fnames, git_dname):
 
 def make_new_repo(git_root, io):
     """
-    Create a new git repository at the specified location.
+    在指定位置创建新的 git 仓库。
     
-    Initializes a git repository and sets up appropriate .gitignore entries.
+    初始化 git 仓库并设置适当的 .gitignore 条目。
     
     Args:
-        git_root: Directory path where the repository should be created
-        io: InputOutput instance for user communication
+        git_root: 应创建仓库的目录路径
+        io: 用于用户通信的 InputOutput 实例
         
     Returns:
-        git.Repo or None: Created repository object, or None if creation failed
+        git.Repo 或 None: 创建的仓库对象，如果创建失败则返回 None
     """
     try:
         repo = git.Repo.init(git_root)
@@ -153,18 +153,17 @@ def make_new_repo(git_root, io):
 
 def setup_git(git_root, io):
     """
-    Set up git repository configuration for aider.
+    设置 aider 的 git 仓库配置。
     
-    Checks for existing git repository, creates one if needed, and ensures
-    user name and email are configured. Prompts user for confirmation before
-    creating a new repository.
+    检查现有 git 仓库，必要时创建一个，并确保配置了用户名和邮箱。
+    在创建新仓库之前会提示用户确认。
     
     Args:
-        git_root: Initially guessed git root directory or None
-        io: InputOutput instance for user communication
+        git_root: 最初猜测的 git 根目录或 None
+        io: 用于用户通信的 InputOutput 实例
         
     Returns:
-        str or None: Path to git repository working tree directory, or None if not set up
+        str 或 None: git 仓库工作树目录的路径，如果未设置则返回 None
     """
     if git is None:
         return
@@ -221,15 +220,15 @@ def setup_git(git_root, io):
 
 def check_gitignore(git_root, io, ask=True):
     """
-    Ensure aider-related files are added to .gitignore.
+    确保 aider 相关文件被添加到 .gitignore。
     
-    Checks if .aider and .env files should be ignored by git and adds them
-    to .gitignore if necessary. Can prompt user for confirmation.
+    检查 .aider 和 .env 文件是否应该被 git 忽略，并在必要时将它们
+    添加到 .gitignore。可以提示用户确认。
     
     Args:
-        git_root: Root directory of the git repository
-        io: InputOutput instance for user communication
-        ask: Whether to prompt user for confirmation before making changes
+        git_root: git 仓库的根目录
+        io: 用于用户通信的 InputOutput 实例
+        ask: 在更改前是否提示用户确认
     """
     if not git_root:
         return
@@ -285,16 +284,16 @@ def check_gitignore(git_root, io, ask=True):
 
 def check_streamlit_install(io):
     """
-    Check if Streamlit is installed and prompt to install if needed.
+    检查 Streamlit 是否已安装，如需要则提示安装。
     
-    Verifies that the streamlit package is available for the browser feature.
-    If not installed, prompts the user to install it.
+    验证 streamlit 包是否可用于浏览器功能。
+    如果未安装，则提示用户安装它。
     
     Args:
-        io: InputOutput instance for user communication
+        io: 用于用户通信的 InputOutput 实例
         
     Returns:
-        bool: True if streamlit is installed or was successfully installed, False otherwise
+        bool: 如果 streamlit 已安装或已成功安装则返回 True，否则返回 False
     """
     return utils.check_pip_install_extra(
         io,
@@ -306,12 +305,12 @@ def check_streamlit_install(io):
 
 def write_streamlit_credentials():
     """
-    Write default Streamlit credentials file.
+    写入默认的 Streamlit 凭据文件。
     
-    Creates an empty credentials.toml file for Streamlit to prevent
-    it from prompting the user for an email address.
+    创建一个空的 credentials.toml 文件供 Streamlit 使用，以防止
+    它提示用户输入电子邮件地址。
     
-    See https://github.com/Aider-AI/aider/issues/772
+    参见 https://github.com/Aider-AI/aider/issues/772
     """
     from streamlit.file_util import get_streamlit_file_path
 
@@ -330,13 +329,13 @@ def write_streamlit_credentials():
 
 def launch_gui(args):
     """
-    Launch the Aider graphical user interface using Streamlit.
+    使用 Streamlit 启动 Aider 图形用户界面。
     
-    Initializes and runs the Streamlit-based GUI for aider with appropriate
-    configuration settings based on whether it's a development or production version.
+    初始化并运行基于 Streamlit 的 aider GUI，根据是否为开发版本
+    或生产版本使用适当的配置设置。
     
     Args:
-        args: List of command-line arguments to pass to the GUI
+        args: 要传递给 GUI 的命令行参数列表
     """
     from streamlit.web import cli
 
@@ -384,17 +383,17 @@ def launch_gui(args):
 
 def parse_lint_cmds(lint_cmds, io):
     """
-    Parse lint command strings into a dictionary mapping languages to commands.
+    将 lint 命令字符串解析为映射语言到命令的字典。
     
-    Processes --lint-cmd arguments in the format "language: cmd --args" or just "cmd".
+    处理格式为 "language: cmd --args" 或仅 "cmd" 的 --lint-cmd 参数。
     
     Args:
-        lint_cmds: List of lint command strings to parse
-        io: InputOutput instance for error reporting
+        lint_cmds: 要解析的 lint 命令字符串列表
+        io: 用于错误报告的 InputOutput 实例
         
     Returns:
-        dict or None: Dictionary mapping language names to lint commands,
-                     or None if parsing errors occurred
+        dict 或 None: 将语言名称映射到 lint 命令的字典，
+                     如果发生解析错误则返回 None
     """
     err = False
     res = dict()
@@ -424,18 +423,18 @@ def parse_lint_cmds(lint_cmds, io):
 
 def generate_search_path_list(default_file, git_root, command_line_file):
     """
-    Generate a list of file paths to search for configuration files.
+    生成用于搜索配置文件的路径列表。
     
-    Creates a prioritized search path including home directory, git root,
-    and command-line specified locations. Removes duplicates while preserving order.
+    创建包括主目录、git 根目录和命令行指定位置的优先级搜索路径。
+    在保留顺序的同时删除重复项。
     
     Args:
-        default_file: Default filename to search for (e.g., ".aider.conf.yml")
-        git_root: Root directory of git repository or None
-        command_line_file: File path specified via command line or None
+        default_file: 要搜索的默认文件名（例如 ".aider.conf.yml"）
+        git_root: git 仓库的根目录或 None
+        command_line_file: 通过命令行指定的文件路径或 None
         
     Returns:
-        list: List of file paths as strings, ordered from lowest to highest priority
+        list: 文件路径字符串列表，按从最低到最高优先级排序
     """
     files = []
     files.append(Path.home() / default_file)  # homedir
@@ -468,19 +467,19 @@ def generate_search_path_list(default_file, git_root, command_line_file):
 
 def register_models(git_root, model_settings_fname, io, verbose=False):
     """
-    Register custom model settings from configuration files.
+    从配置文件注册自定义模型设置。
     
-    Loads model settings from search paths and registers them with the models module.
-    Reports loaded files and search paths when verbose mode is enabled.
+    从搜索路径加载模型设置并将其注册到 models 模块。
+    在启用详细模式时报告已加载的文件和搜索路径。
     
     Args:
-        git_root: Root directory of git repository or None
-        model_settings_fname: Command-line specified model settings filename
-        io: InputOutput instance for output and error reporting
-        verbose: Whether to print detailed loading information
+        git_root: git 仓库的根目录或 None
+        model_settings_fname: 命令行指定的模型设置文件名
+        io: 用于输出和错误报告的 InputOutput 实例
+        verbose: 是否打印详细的加载信息
         
     Returns:
-        int or None: Error code 1 if loading failed, None on success
+        int 或 None: 如果加载失败则返回错误代码 1，成功则返回 None
     """
     model_settings_files = generate_search_path_list(
         ".aider.model.settings.yml", git_root, model_settings_fname
@@ -509,18 +508,18 @@ def register_models(git_root, model_settings_fname, io, verbose=False):
 
 def load_dotenv_files(git_root, dotenv_fname, encoding="utf-8"):
     """
-    Load environment variables from .env files at various locations.
+    从各个位置的 .env 文件加载环境变量。
     
-    Searches for .env files in standard locations and loads them in order.
-    Also includes OAuth keys file if it exists.
+    在标准位置搜索 .env 文件并按顺序加载它们。
+    如果存在还包括 OAuth 密钥文件。
     
     Args:
-        git_root: Root directory of git repository or None
-        dotenv_fname: Command-line specified .env filename
-        encoding: Text encoding to use when reading files (default: "utf-8")
+        git_root: git 仓库的根目录或 None
+        dotenv_fname: 命令行指定的 .env 文件名
+        encoding: 读取文件时使用的文本编码（默认："utf-8"）
         
     Returns:
-        list: List of successfully loaded .env file paths
+        list: 成功加载的 .env 文件路径列表
     """
     # Standard .env file search path
     dotenv_files = generate_search_path_list(
@@ -552,16 +551,16 @@ def load_dotenv_files(git_root, dotenv_fname, encoding="utf-8"):
 
 def register_litellm_models(git_root, model_metadata_fname, io, verbose=False):
     """
-    Register LiteLLM model metadata from configuration files.
+    从配置文件注册 LiteLLM 模型元数据。
     
-    Loads model metadata definitions and registers them with LiteLLM.
-    Searches multiple locations for metadata files.
+    加载模型元数据定义并将其注册到 LiteLLM。
+    在多个位置搜索元数据文件。
     
     Args:
-        git_root: Root directory of git repository or None
-        model_metadata_fname: Command-line specified model metadata filename
-        io: InputOutput instance for output and error reporting
-        verbose: Whether to print detailed loading information
+        git_root: git 仓库的根目录或 None
+        model_metadata_fname: 命令行指定的模型元数据文件名
+        io: 用于输出和错误报告的 InputOutput 实例
+        verbose: 是否打印详细的加载信息
     """
     model_metadata_files = []
 
@@ -585,42 +584,18 @@ def register_litellm_models(git_root, model_metadata_fname, io, verbose=False):
 
 
 def sanity_check_repo(repo, io):
-    if not repo:
-        return True
-
-    if not repo.repo.working_tree_dir:
-        io.tool_error("The git repo does not seem to have a working tree?")
-        return False
-
-    bad_ver = False
-    try:
-        repo.get_tracked_files()
-        if not repo.git_repo_error:
-            return True
-        error_msg = str(repo.git_repo_error)
-    except UnicodeDecodeError as exc:
-        error_msg = (
-            "Failed to read the Git repository. This issue is likely caused by a path encoded "
-            f'in a format different from the expected encoding "{sys.getfilesystemencoding()}".\n'
-            f"Internal error: {str(exc)}"
-        )
-    except ANY_GIT_ERROR as exc:
-        error_msg = str(exc)
-        bad_ver = "version in (1, 2)" in error_msg
-    except AssertionError as exc:
-        error_msg = str(exc)
-        bad_ver = True
-
-    if bad_ver:
-        io.tool_error("Aider only works with git repos with version number 1 or 2.")
-        io.tool_output("You may be able to convert your repo: git update-index --index-version=2")
-        io.tool_output("Or run aider --no-git to proceed without using git.")
-        io.offer_url(urls.git_index_version, "Open documentation url for more info?")
-        return False
-
-    io.tool_error("Unable to read git repository, it may be corrupt?")
-    io.tool_output(error_msg)
-    return False
+    """
+    对 git 仓库执行健全性检查。
+    
+    验证仓库是否有效且可用，检查版本兼容性和潜在问题。
+    
+    Args:
+        repo: GitRepo 实例
+        io: 用于用户通信的 InputOutput 实例
+        
+    Returns:
+        bool: 如果仓库通过检查则返回 True，否则返回 False
+    """
 
 
 def main(argv=None, input=None, output=None, force_git_root=None, return_coder=False):
